@@ -1,0 +1,16 @@
+.home {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.home h1 {
+  color: #646cff;
+  margin-bottom: 2rem;
+}
+
+.home p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #333;
+}
