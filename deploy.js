@@ -14,13 +14,22 @@ execSync('npm run build', { stdio: 'inherit' });
 const distPath = path.join(__dirname, 'dist');
 const tempPath = path.join(__dirname, 'temp');
 
+// 현재 브랜치 이름 저장
+const currentBranch = execSync('git rev-parse --abbrev-ref HEAD')
+  .toString()
+  .trim();
+
 // 임시 디렉토리가 있으면 삭제
 if (fs.existsSync(tempPath)) {
   fs.rmSync(tempPath, { recursive: true, force: true });
 }
 
-// 임시 디렉토리 생성
-fs.mkdirSync(tempPath);
+// 임시 디렉토리 생성 및 dist 내용 복사
+fs.mkdirSync(tempPath, { recursive: true });
+fs.copyFileSync(
+  path.join(__dirname, '.gitignore'),
+  path.join(tempPath, '.gitignore')
+);
 
 // 디렉토리 복사 함수
 function copyDir(src, dest) {
@@ -49,40 +58,42 @@ copyDir(distPath, tempPath);
 // .nojekyll 파일 생성
 fs.writeFileSync(path.join(tempPath, '.nojekyll'), '');
 
-// gh-pages 브랜치로 전환
+// gh-pages 브랜치 생성 또는 전환
 console.log('Switching to gh-pages branch...');
-execSync('git checkout gh-pages', { stdio: 'inherit' });
-
-// 현재 디렉토리의 모든 파일 삭제 (git 파일 제외)
-console.log('Cleaning gh-pages branch...');
-const currentFiles = fs.readdirSync(__dirname);
-currentFiles.forEach((file) => {
-  if (file !== '.git' && file !== 'temp') {
-    const filePath = path.join(__dirname, file);
-    if (fs.lstatSync(filePath).isDirectory()) {
-      fs.rmSync(filePath, { recursive: true, force: true });
-    } else {
-      fs.unlinkSync(filePath);
-    }
-  }
-});
+try {
+  execSync('git checkout gh-pages', { stdio: 'inherit' });
+} catch (error) {
+  execSync('git checkout --orphan gh-pages', { stdio: 'inherit' });
+  execSync('git rm -rf .', { stdio: 'inherit' });
+}
 
 // 임시 디렉토리의 파일들을 현재 디렉토리로 복사
 console.log('Copying files to gh-pages branch...');
-copyDir(tempPath, __dirname);
+const files = fs.readdirSync(tempPath);
+files.forEach((file) => {
+  const srcPath = path.join(tempPath, file);
+  const destPath = path.join(__dirname, file);
+  if (fs.lstatSync(srcPath).isDirectory()) {
+    copyDir(srcPath, destPath);
+  } else {
+    fs.copyFileSync(srcPath, destPath);
+  }
+});
 
 // 변경사항을 커밋하고 푸시
 console.log('Committing and pushing changes...');
 execSync('git add .', { stdio: 'inherit' });
-execSync('git commit -m "Update gh-pages"', { stdio: 'inherit' });
-execSync('git push origin gh-pages', { stdio: 'inherit' });
+execSync('git commit -m "Update gh-pages with dist contents"', {
+  stdio: 'inherit',
+});
+execSync('git push origin gh-pages --force', { stdio: 'inherit' });
 
 // 임시 디렉토리 삭제
 console.log('Cleaning up...');
 fs.rmSync(tempPath, { recursive: true, force: true });
 
-// main 브랜치로 돌아가기
-console.log('Switching back to main branch...');
-execSync('git checkout main', { stdio: 'inherit' });
+// 원래 브랜치로 돌아가기
+console.log(`Switching back to ${currentBranch} branch...`);
+execSync(`git checkout ${currentBranch}`, { stdio: 'inherit' });
 
 console.log('Deployment completed successfully!');
