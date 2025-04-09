@@ -16,6 +16,7 @@
     "react-router-dom": "^6.22.1"
   },
   "devDependencies": {
+    "@types/node": "^22.14.0",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
     "@types/react-router-dom": "^5.3.3",
